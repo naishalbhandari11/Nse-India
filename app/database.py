@@ -54,14 +54,14 @@ connection_pool = None
 #         connection_pool.putconn(conn)
 
 
-def init_db_pool():
-    global connection_pool
-    connection_pool = SimpleConnectionPool(
-        1,
-        10,
-        dsn=os.getenv("DATABASE_URL"),
-        sslmode="require"
-    )
+# def init_db_pool():
+#     global connection_pool
+#     connection_pool = SimpleConnectionPool(
+#         1,
+#         10,
+#         dsn=os.getenv("DATABASE_URL"),
+#         sslmode="require"
+#     )
 
 def get_db():
     global connection_pool
