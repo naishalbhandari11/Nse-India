@@ -19,14 +19,16 @@ def init_db_pool():
     """Initialize database connection pool"""
     global connection_pool
     try:
-        connection_pool = SimpleConnectionPool(
-            1, 20,  # min and max connections
-            host=os.getenv("DB_HOST", "localhost"),
-            port=int(os.getenv("DB_PORT", 5432)),
-            database=os.getenv("DB_NAME", "NseStock"),
-            user=os.getenv("DB_USER", "postgres"),
-            password=os.getenv("DB_PASSWORD", "root")
-        )
+        # connection_pool = SimpleConnectionPool(
+        #     1, 20,  # min and max connections
+        #     host=os.getenv("DB_HOST", "localhost"),
+        #     port=int(os.getenv("DB_PORT", 5432)),
+        #     database=os.getenv("DB_NAME", "NseStock"),
+        #     user=os.getenv("DB_USER", "postgres"),
+        #     password=os.getenv("DB_PASSWORD", "root")
+        # )
+        DATABASE_URL = os.getenv("DATABASE_URL")
+        connection_pool = psycopg2.connect(DATABASE_URL, sslmode="require")
         print("[DB] Connection pool initialized")
         
         # Create tables if they don't exist

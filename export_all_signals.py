@@ -14,14 +14,15 @@ def export_all_signals():
     print("="*70)
     print("EXPORTING ALL BUY SIGNALS TO SINGLE CSV FILE")
     print("="*70)
-    
-    conn = psycopg2.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        port=int(os.getenv("DB_PORT", 5432)),
-        dbname=os.getenv("DB_NAME", "NseStock"),
-        user=os.getenv("DB_USER", "postgres"),
-        password=os.getenv("DB_PASSWORD", "root")
-    )
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    conn = psycopg2.connect(DATABASE_URL, sslmode="require")
+    # conn = psycopg2.connect(
+    #     host=os.getenv("DB_HOST", "localhost"),
+    #     port=int(os.getenv("DB_PORT", 5432)),
+    #     dbname=os.getenv("DB_NAME", "NseStock"),
+    #     user=os.getenv("DB_USER", "postgres"),
+    #     password=os.getenv("DB_PASSWORD", "root")
+    # )
     output_dir = "exports"
     os.makedirs(output_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

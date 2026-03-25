@@ -13,13 +13,16 @@ OUTPUT_FILE = "database_design.xlsx"
 
 def main():
     load_dotenv()
-    conn = psycopg2.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        port=os.getenv("DB_PORT", "5432"),
-        database=os.getenv("DB_NAME", "NseStock"),
-        user=os.getenv("DB_USER", "postgres"),
-        password=os.getenv("DB_PASSWORD", ""),
-    )
+    # conn = psycopg2.connect(
+    #     host=os.getenv("DB_HOST", "localhost"),
+    #     port=os.getenv("DB_PORT", "5432"),
+    #     database=os.getenv("DB_NAME", "NseStock"),
+    #     user=os.getenv("DB_USER", "postgres"),
+    #     password=os.getenv("DB_PASSWORD", ""),
+    # )
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    conn = psycopg2.connect(DATABASE_URL, sslmode="require")
+    
     query = """
     SELECT c.relname AS table_name,
            a.attname AS column_name,

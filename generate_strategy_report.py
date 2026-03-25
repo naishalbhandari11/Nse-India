@@ -34,13 +34,16 @@ def generate_report():
     
     # 2. Load Price Data from DB
     print("🔗 Connecting to database to fetch price data...")
-    conn = psycopg2.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        port=int(os.getenv("DB_PORT", 5432)),
-        dbname=os.getenv("DB_NAME", "NseStock"),
-        user=os.getenv("DB_USER", "postgres"),
-        password=os.getenv("DB_PASSWORD", "root")
-    )
+    # conn = psycopg2.connect(
+    #     host=os.getenv("DB_HOST", "localhost"),
+    #     port=int(os.getenv("DB_PORT", 5432)),
+    #     dbname=os.getenv("DB_NAME", "NseStock"),
+    #     user=os.getenv("DB_USER", "postgres"),
+    #     password=os.getenv("DB_PASSWORD", "root")
+    # )
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    conn = psycopg2.connect(DATABASE_URL, sslmode="require")
+    
     query = "SELECT symbol, trade_date, close_price, high_price FROM daily_prices ORDER BY symbol, trade_date"
     print("📥 Downloading price data (this might take a moment)...")
     df_prices = pd.read_sql_query(query, conn)
