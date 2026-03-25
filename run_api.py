@@ -18,18 +18,17 @@ def main():
     
     try:
         # Run uvicorn with specific reload directories only
-        subprocess.run([
-            sys.executable, "-m", "uvicorn",
+        def main():
+            port = int(os.environ.get("PORT", 8000))
+
+            uvicorn.run(
             "app.api:app",
-            "--reload",
-            "--reload-dir", "app",
-            "--reload-dir", "templates", 
-            "--reload-dir", "static",
-            "--host", "127.0.0.1",
-            "--port", "8000",
-            "--timeout-keep-alive", "500",
-            "--h11-max-incomplete-event-size", "16777216"
-        ])
+            # host="127.0.0.1",
+            host="0.0.0.0",
+            port=port,
+            timeout_keep_alive=500,
+            h11_max_incomplete_event_size=16777216
+            )
     except KeyboardInterrupt:
         print("\n\nServer stopped by user")
         sys.exit(0)
