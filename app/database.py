@@ -73,78 +73,78 @@ def return_db(conn):
     connection_pool.putconn(conn)
 
 
-def create_auth_tables():
-    """Create authentication-related tables"""
-    conn = get_db()
-    try:
-        cur = conn.cursor()
+# def create_auth_tables():
+#     """Create authentication-related tables"""
+#     conn = get_db()
+#     try:
+#         cur = conn.cursor()
         
-        # Create users table if it doesn't exist
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                user_id SERIAL PRIMARY KEY,
-                full_name VARCHAR(100) NOT NULL,
-                phone_number VARCHAR(20),
-                email VARCHAR(100) UNIQUE NOT NULL,
-                password_hash VARCHAR(255) NOT NULL,
-                is_verified BOOLEAN DEFAULT FALSE,
-                onboarding_completed BOOLEAN DEFAULT FALSE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+#         # Create users table if it doesn't exist
+#         cur.execute("""
+#             CREATE TABLE IF NOT EXISTS users (
+#                 user_id SERIAL PRIMARY KEY,
+#                 full_name VARCHAR(100) NOT NULL,
+#                 phone_number VARCHAR(20),
+#                 email VARCHAR(100) UNIQUE NOT NULL,
+#                 password_hash VARCHAR(255) NOT NULL,
+#                 is_verified BOOLEAN DEFAULT FALSE,
+#                 onboarding_completed BOOLEAN DEFAULT FALSE,
+#                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+#             )
+#         """)
         
-        # Create user_otps table for OTP verification
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS user_otps (
-                id SERIAL PRIMARY KEY,
-                phone_number VARCHAR(20) NOT NULL,
-                otp_code VARCHAR(6) NOT NULL,
-                expires_at TIMESTAMP NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+#         # Create user_otps table for OTP verification
+#         cur.execute("""
+#             CREATE TABLE IF NOT EXISTS user_otps (
+#                 id SERIAL PRIMARY KEY,
+#                 phone_number VARCHAR(20) NOT NULL,
+#                 otp_code VARCHAR(6) NOT NULL,
+#                 expires_at TIMESTAMP NOT NULL,
+#                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+#             )
+#         """)
         
-        # Remove username column if it exists
-        try:
-            cur.execute("ALTER TABLE users DROP COLUMN IF EXISTS username")
-            conn.commit()
-            print("[DB] Removed username column from users table")
-        except Exception as e:
-            # Column might not exist
-            conn.rollback()
+#         # Remove username column if it exists
+#         try:
+#             cur.execute("ALTER TABLE users DROP COLUMN IF EXISTS username")
+#             conn.commit()
+#             print("[DB] Removed username column from users table")
+#         except Exception as e:
+#             # Column might not exist
+#             conn.rollback()
         
-        # Add onboarding_completed column if it doesn't exist
-        try:
-            cur.execute("ALTER TABLE users ADD COLUMN onboarding_completed BOOLEAN DEFAULT FALSE")
-            conn.commit()
-            print("[DB] Added onboarding_completed column to users table")
-        except Exception as e:
-            # Column might already exist
-            conn.rollback()
+#         # Add onboarding_completed column if it doesn't exist
+#         try:
+#             cur.execute("ALTER TABLE users ADD COLUMN onboarding_completed BOOLEAN DEFAULT FALSE")
+#             conn.commit()
+#             print("[DB] Added onboarding_completed column to users table")
+#         except Exception as e:
+#             # Column might already exist
+#             conn.rollback()
         
-        # Create indexes
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone_number)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_users_fullname ON users(full_name)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_user_otps_phone ON user_otps(phone_number)")
+#         # Create indexes
+#         cur.execute("CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone_number)")
+#         cur.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)")
+#         cur.execute("CREATE INDEX IF NOT EXISTS idx_users_fullname ON users(full_name)")
+#         cur.execute("CREATE INDEX IF NOT EXISTS idx_user_otps_phone ON user_otps(phone_number)")
         
-        # Clean up expired OTPs
-        cur.execute("DELETE FROM user_otps WHERE expires_at < %s", (datetime.utcnow(),))
+#         # Clean up expired OTPs
+#         cur.execute("DELETE FROM user_otps WHERE expires_at < %s", (datetime.utcnow(),))
         
-        conn.commit()
-        cur.close()
-        return_db(conn)
-        print("[DB] Authentication tables updated/verified")
+#         conn.commit()
+#         cur.close()
+#         return_db(conn)
+#         print("[DB] Authentication tables updated/verified")
         
-    except Exception as e:
-        print(f"[DB] Failed to update auth tables: {e}")
-        try:
-            cur.close()
-            return_db(conn)
-        except:
-            pass
+#     except Exception as e:
+#         print(f"[DB] Failed to update auth tables: {e}")
+#         try:
+#             cur.close()
+#             return_db(conn)
+#         except:
+#             pass
 
-def create_news_tables():
+# def create_news_tables():
     """Create news-related tables"""
     conn = get_db()
     try:
