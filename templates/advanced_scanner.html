@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+
+{% block title %}Advanced Stock Scanner - NSE Stock Analysis{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* ============================================================
+       THEAD VISIBILITY FIX - Force blue header at all times
+       ============================================================ */
+    .results-table-container .results-table>thead,
+    .results-table-container .results-table>thead>tr {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+        background-color: #2563eb !important;
+        color: #ffffff !important;
+    }
+
+    /* Prevent ANY hover effect from making the background white */
+    .results-table-container .results-table>thead>tr:hover,
+    .results-table-container .results-table>thead>tr:hover>th,
+    .results-table-container .results-table>thead>tr>th:hover {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+        background-color: #2563eb !important;
+        color: #ffffff !important;
+    }
+
+    .results-table-container .results-table>thead>tr>th {
+        color: #ffffff !important;
+        background: transparent !important;
+        cursor: pointer;
+        user-select: none;
+        white-space: nowrap;
+        padding: 0.5rem 0.5rem !important;
+    }
+
+    .results-table-container .results-table>thead>tr>th:hover {
+        background: rgba(255, 255, 255, 0.12) !important;
+    }
+
+    /* Sort arrow indicators */
+    .sort-arrow {
+        display: inline-block;
+        margin-left: 4px;
+        font-size: 0.75rem;
+        color: #ffffff;
+        vertical-align: middle;
+    }
+
+    /* Active sort column header slightly lighter */
+    th.sort-active {
+        background: rgba(255, 255, 255, 0.15) !important;
+    }
+
+    /* Badge styles for success rates */
+    .badge.success-high {
+        background: #dcfce7;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+    }
+
+    .badge.success-medium {
+        background: #fef3c7;
+        color: #92400e;
+        border: 1px solid #fde68a;
+    }
+
+    .badge.success-low {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+    }
+
+    /* Profit/Loss cell coloring */
+    .profit {
+        color: #059669;
+        font-weight: 700;
+    }
+
+    .loss {
+        color: #dc2626;
+        font-weight: 700;
+    }
+
+    .sold {
+        color: #f59e0b;
+        font-weight: 600;
+    }
+
+    /* Non-clickable header */
+    th.no-sort {
+        cursor: default;
+    }
+
+    .results-select-compact {
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        padding: 2px 4px;
+        font-size: 0.7rem;
+        color: #0f172a;
+        cursor: pointer;
+        outline: none;
+        height: 24px;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    .results-select-compact:hover {
+        border-color: #3b82f6;
+    }
+    .results-select-compact:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    }
+
+    /* ── Multi-select indicator pill UI ── */
+    .indicator-group { position: relative; }
+
+    .indicator-multiselect { position: relative; }
+
+    .indicator-trigger {
+        display: flex; align-items: center; justify-content: space-between; gap: 6px;
+        padding: 0 8px; height: 32px; min-width: 140px;
+        background: #fff; border: 1px solid #cbd5e1; border-radius: 6px;
+        cursor: pointer; font-size: 0.75rem; font-weight: 500; color: #0f172a;
+        user-select: none; white-space: nowrap;
+    }
+    .indicator-trigger:hover { border-color: #3b82f6; }
+
+    .indicator-dropdown {
+        position: absolute; top: calc(100% + 4px); left: 0; z-index: 9999;
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        width: 340px; padding: 8px;
+    }
+
+    .ind-dropdown-header {
+        display: flex; gap: 6px; margin-bottom: 8px;
+    }
+    .ind-btn-all, .ind-btn-clear {
+        flex: 1; padding: 4px 0; border: none; border-radius: 4px;
+        font-size: 0.7rem; font-weight: 700; cursor: pointer;
+    }
+    .ind-btn-all  { background: #dcfce7; color: #166534; }
+    .ind-btn-clear{ background: #fee2e2; color: #991b1b; }
+
+    .ind-pills-container {
+        display: flex; flex-wrap: wrap; gap: 5px; max-height: 220px; overflow-y: auto;
+    }
+
+    .ind-group-label {
+        width: 100%; font-size: 0.62rem; font-weight: 700; color: #94a3b8;
+        text-transform: uppercase; letter-spacing: 0.06em;
+        margin-top: 4px; margin-bottom: 2px;
+    }
+
+    .ind-pill {
+        display: flex; align-items: center; gap: 4px;
+        padding: 3px 8px; border-radius: 999px; cursor: pointer;
+        font-size: 0.7rem; font-weight: 600;
+        background: #f1f5f9; color: #475569;
+        border: 1px solid #e2e8f0;
+        transition: all 0.15s;
+        user-select: none;
+    }
+    .ind-pill:hover { border-color: #3b82f6; color: #2563eb; }
+    .ind-pill input[type=checkbox] { display: none; }
+    .ind-pill.selected {
+        background: #eff6ff; color: #1d4ed8; border-color: #93c5fd;
+    }
+
+    /* Results summary badges */
+    .results-title-area {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+    }
+    .results-badges {
+        display: flex;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    .rbadge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.2rem;
+        padding: 0.18rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 500;
+        border: 1px solid transparent;
+    }
+    .rbadge strong { font-weight: 700; }
+    .rbadge-total  { background:#e0e7ff; color:#3730a3; border-color:#c7d2fe; }
+    .rbadge-profit { background:#d1fae5; color:#065f46; border-color:#a7f3d0; }
+    .rbadge-loss   { background:#fee2e2; color:#991b1b; border-color:#fecaca; }
+    .rbadge-sold   { background:#fef3c7; color:#92400e; border-color:#fde68a; }
+    .rbadge-open   { background:#e0f2fe; color:#0369a1; border-color:#bae6fd; }
+    .rbadge-nt     { background:#f3f4f6; color:#4b5563; border-color:#d1d5db; }
+    .rbadge-pl-pos { background:#d1fae5; color:#065f46; border-color:#a7f3d0; }
+    .rbadge-pl-neg { background:#fee2e2; color:#991b1b; border-color:#fecaca; }
+    .rbadge-minpct { background:#e0e7ff; color:#3730a3; border-color:#c7d2fe; cursor:text; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="scanner-page">
+    <div class="scanner-header" style="margin-bottom: 12px; padding: 0 5px;">
+        <h1 style="font-size: 1.2rem; margin-bottom: 4px;">🔍 Historical Trading Performance Scanner</h1>
+        <p class="scanner-description" style="font-size: 0.75rem; color: #64748b; margin: 0;">Shows companies with BUY signals TODAY and analyzes their historical performance.</p>
+    </div>
+
+    <div class="scanner-controls">
+        <div class="scanner-form">
+            <div class="form-row ultra-compact">
+                <div class="form-group">
+                    <label>TARGET %</label>
+                    <input type="number" id="scannerTarget" class="scanner-input" value="5" min="0.5" max="50" step="0.5" placeholder="Target %">
+                </div>
+
+                <div class="form-group">
+                    <label>STOP LOSS %</label>
+                    <input type="number" id="scannerStopLoss" class="scanner-input" value="3" min="0.5" max="50" step="0.5" placeholder="Stop Loss %">
+                </div>
+
+                <div class="form-group">
+                    <label>DAYS</label>
+                    <input type="number" id="holdingDays" class="scanner-input" value="30" min="1" max="365" placeholder="Holding Days">
+                </div>
+
+                <div class="form-group">
+                    <label>FROM</label>
+                    <input type="date" id="scannerFromDate" class="scanner-input">
+                </div>
+
+                <div class="form-group">
+                    <label>TO</label>
+                    <input type="date" id="scannerToDate" class="scanner-input">
+                </div>
+
+                <div class="form-group indicator-group">
+                    <label>INDICATOR</label>
+                    <div class="indicator-multiselect" id="indicatorMultiSelect">
+                        <div class="indicator-trigger" id="indicatorTrigger">
+                            <span id="indicatorTriggerText">All Indicators</span>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                        <div class="indicator-dropdown" id="indicatorDropdown" style="display:none;">
+                            <div class="ind-dropdown-header">
+                                <button type="button" class="ind-btn-all" onclick="selectAllIndicators()">✓ ALL</button>
+                                <button type="button" class="ind-btn-clear" onclick="clearAllIndicators()">✕ CLEAR</button>
+                            </div>
+                            <div class="ind-pills-container">
+                                <div class="ind-group-label">SMA</div>
+                                <label class="ind-pill"><input type="checkbox" value="SMA5"> SMA5</label>
+                                <label class="ind-pill"><input type="checkbox" value="SMA10"> SMA10</label>
+                                <label class="ind-pill"><input type="checkbox" value="SMA20"> SMA20</label>
+                                <label class="ind-pill"><input type="checkbox" value="SMA50"> SMA50</label>
+                                <label class="ind-pill"><input type="checkbox" value="SMA100"> SMA100</label>
+                                <label class="ind-pill"><input type="checkbox" value="SMA200"> SMA200</label>
+                                <div class="ind-group-label">RSI</div>
+                                <label class="ind-pill"><input type="checkbox" value="RSI7"> RSI7</label>
+                                <label class="ind-pill"><input type="checkbox" value="RSI14"> RSI14</label>
+                                <label class="ind-pill"><input type="checkbox" value="RSI21"> RSI21</label>
+                                <label class="ind-pill"><input type="checkbox" value="RSI50"> RSI50</label>
+                                <label class="ind-pill"><input type="checkbox" value="RSI80"> RSI80</label>
+                                <div class="ind-group-label">Bollinger Bands</div>
+                                <label class="ind-pill"><input type="checkbox" value="BB10_Lower"> BB10</label>
+                                <label class="ind-pill"><input type="checkbox" value="BB20_Lower"> BB20</label>
+                                <label class="ind-pill"><input type="checkbox" value="BB50_Lower"> BB50</label>
+                                <label class="ind-pill"><input type="checkbox" value="BB100_Lower"> BB100</label>
+                                <div class="ind-group-label">MACD</div>
+                                <label class="ind-pill"><input type="checkbox" value="Short"> MACD Short</label>
+                                <label class="ind-pill"><input type="checkbox" value="Long"> MACD Long</label>
+                                <label class="ind-pill"><input type="checkbox" value="Standard"> MACD Standard</label>
+                                <div class="ind-group-label">Stochastic</div>
+                                <label class="ind-pill"><input type="checkbox" value="STOCH5"> STOCH5</label>
+                                <label class="ind-pill"><input type="checkbox" value="STOCH9"> STOCH9</label>
+                                <label class="ind-pill"><input type="checkbox" value="STOCH14"> STOCH14</label>
+                                <label class="ind-pill"><input type="checkbox" value="STOCH21"> STOCH21</label>
+                                <label class="ind-pill"><input type="checkbox" value="STOCH50"> STOCH50</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions-compact">
+                    <button id="scanBtn" class="btn btn-primary compact">🔍 SCAN</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="scannerLoading" class="scanner-loading" style="display: none;">
+        <div class="loading-spinner"></div>
+        <p>Scanning stocks... This may take a moment.</p>
+        <p class="loading-progress" id="scanProgress">Analyzing companies...</p>
+        <p class="loading-progress" id="scanProgressTimer" style="font-size:0.75rem;color:#94a3b8;margin-top:4px;"></p>
+    </div>
+
+    <div id="scannerResults" class="scanner-results" style="display: none;">
+        <div class="results-top-bar">
+            <div class="results-title-area">
+                <span class="results-label">📊 RESULTS</span>
+                <div id="resultsBadges" class="results-badges" style="display:none;">
+                    <span class="rbadge rbadge-total">Total: <strong id="rb-total">0</strong></span>
+                    <span class="rbadge rbadge-profit">Profit: <strong id="rb-profit">0</strong></span>
+                    <span class="rbadge rbadge-loss">Loss: <strong id="rb-loss">0</strong></span>
+                    <span class="rbadge rbadge-sold">Sold: <strong id="rb-sold">0</strong></span>
+                    <span class="rbadge rbadge-open">Open: <strong id="rb-open">0</strong></span>
+                    <span class="rbadge rbadge-nt">Not Traded: <strong id="rb-nt">0</strong></span>
+                    <span class="rbadge rbadge-pl" id="rb-pl-badge" style="display:none;">P/L: <strong id="rb-pl">+0.00%</strong></span>
+                    <span class="rbadge rbadge-minpct" style="padding:0;">
+                        <label style="padding:0.18rem 0.4rem 0.18rem 0.55rem;white-space:nowrap;font-size:0.72rem;">Min %</label>
+                        <input type="number" id="minSuccessFilter" min="0" max="100" step="1" placeholder="e.g. 50"
+                            style="width:58px;border:none;background:transparent;font-size:0.72rem;font-weight:700;color:#3730a3;outline:none;padding:0.18rem 0.4rem 0.18rem 0;">
+                    </span>
+                </div>
+            </div>
+            
+
+
+            <div class="results-actions-compact">
+                <div class="results-search-wrapper">
+                    <input type="text" id="scannerSearch" class="results-search-input-compact" placeholder="🔍 Search...">
+                    <button id="clearScannerSearch" class="clear-btn-compact" style="display: none;">✕</button>
+                </div>
+
+
+                <select id="sortSuccess" class="results-select-compact" onchange="handleDropdownSort('success', this.value)">
+                    <option value="">Sort Success %</option>
+                    <option value="desc">High to Low</option>
+                    <option value="asc">Low to High</option>
+                </select>
+                
+                <select id="sortProfit" class="results-select-compact" onchange="handleDropdownSort('netProfit', this.value)">
+                    <option value="">Sort Total P/L</option>
+                    <option value="desc">High to Low</option>
+                    <option value="asc">Low to High</option>
+                </select>
+
+                <label class="group-toggle">
+                    <input type="checkbox" id="groupByCompany">
+                    <span>Group</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="results-table-container results-table-main">
+            <div class="pagination-row-compact">
+                <div id="paginationInfo" class="page-info-compact"></div>
+                <div id="paginationButtons" class="pagination-btns-compact"></div>
+            </div>
+
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th class="no-sort">NO.</th>
+                        <th class="no-sort">COMPANY</th>
+                        <th class="no-sort">INDICATORS</th>
+                        <th class="no-sort">TOTAL</th>
+                        <th class="no-sort">PROFIT</th>
+                        <th class="no-sort">LOSS</th>
+                        <th class="no-sort">SOLD</th>
+                        <th class="no-sort">OPEN</th>
+                        <th class="no-sort">NOT TRADED</th>
+                        <th class="no-sort">SUCCESS %</th>
+                        <th class="no-sort">TOTAL P/L</th>
+                        <th class="no-sort">ACTION</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsTableBody">
+                </tbody>
+            </table>
+
+            <div class="pagination-row-compact bottom">
+                <div id="paginationBottomButtons" class="pagination-btns-compact"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/scanner-fast.js?v=11.3"></script>
+{% endblock %}

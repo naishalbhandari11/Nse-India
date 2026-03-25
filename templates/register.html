@@ -1,0 +1,549 @@
+{% extends "base.html" %}
+
+{% block title %}Register - NSE Stock Analysis{% endblock %}
+
+{% block content %}
+<!-- Remove navbar for register page -->
+<style>
+.navbar { display: none !important; }
+body { padding-top: 0 !important; }
+</style>
+
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1>Create Account</h1>
+            <p>Join NSE Stock Analysis to access advanced features</p>
+        </div>
+
+        <!-- Registration Form -->
+        <form id="registerForm" class="auth-form">
+            <div class="form-group">
+                <label for="name">Full Name</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="phone">Phone Number</label>
+                <input type="tel" id="phone" name="phone" placeholder="+91 9876543210" required>
+                <small>Used for OTP verification</small>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+                <small>Minimum 6 characters</small>
+            </div>
+
+            <div class="form-group">
+                <label for="confirmPassword">Confirm Password</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" required>
+            </div>
+
+            <button type="submit" class="auth-btn" id="registerBtn">
+                <span class="btn-text">Send OTP</span>
+                <span class="btn-loading" style="display: none;">
+                    <div class="spinner"></div>
+                    Sending OTP...
+                </span>
+            </button>
+        </form>
+
+        <!-- OTP Verification Form -->
+        <form id="otpForm" class="auth-form" style="display: none;">
+            <div class="otp-header">
+                <h2>Verify Phone Number</h2>
+                <p>Enter the 6-digit code sent to <span id="phoneDisplay"></span></p>
+            </div>
+
+            <div class="form-group">
+                <label for="otp">Verification Code</label>
+                <input type="text" id="otp" name="otp" maxlength="6" placeholder="000000" required>
+            </div>
+
+            <button type="submit" class="auth-btn" id="verifyBtn">
+                <span class="btn-text">Verify & Register</span>
+                <span class="btn-loading" style="display: none;">
+                    <div class="spinner"></div>
+                    Verifying...
+                </span>
+            </button>
+
+            <button type="button" class="auth-btn-secondary" id="resendBtn">
+                Resend OTP
+            </button>
+        </form>
+
+        <!-- Success Message -->
+        <div id="successMessage" class="success-message" style="display: none;">
+            <div class="success-icon">✓</div>
+            <h2>Registration Successful!</h2>
+            <p>Your account has been created successfully.</p>
+            <a href="/login" class="auth-btn">Login Now</a>
+        </div>
+
+        <div class="auth-footer">
+            <p>Already have an account? <a href="/login">Login here</a></p>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const registerForm = document.getElementById('registerForm');
+    const otpForm = document.getElementById('otpForm');
+    const successMessage = document.getElementById('successMessage');
+    const registerBtn = document.getElementById('registerBtn');
+    const verifyBtn = document.getElementById('verifyBtn');
+    const resendBtn = document.getElementById('resendBtn');
+    const phoneDisplay = document.getElementById('phoneDisplay');
+
+    let registrationData = {};
+
+    // Registration form submission
+    registerForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(registerForm);
+        registrationData = {
+            name: formData.get('name'),
+            phone: formData.get('phone'),
+            email: formData.get('email'),
+            password: formData.get('password')
+        };
+
+        // Validate passwords match
+        if (registrationData.password !== formData.get('confirmPassword')) {
+            showError('Passwords do not match');
+            return;
+        }
+
+        // Validate password length
+        if (registrationData.password.length < 6) {
+            showError('Password must be at least 6 characters');
+            return;
+        }
+
+        // Validate full name
+        if (registrationData.name.length < 2) {
+            showError('Full name must be at least 2 characters');
+            return;
+        }
+
+        // Validate phone number
+        if (!registrationData.phone.match(/^\+?[1-9]\d{1,14}$/)) {
+            showError('Please enter a valid phone number');
+            return;
+        }
+
+        setLoading(registerBtn, true);
+
+        try {
+            const response = await fetch('/api/auth/send-otp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    phone_number: registrationData.phone
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to send OTP');
+            }
+
+            // Show OTP form
+            registerForm.style.display = 'none';
+            otpForm.style.display = 'block';
+            phoneDisplay.textContent = registrationData.phone;
+
+            showSuccess('OTP sent successfully! Check your phone.');
+
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            setLoading(registerBtn, false);
+        }
+    });
+
+    // OTP verification form submission
+    otpForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(otpForm);
+        const otp = formData.get('otp');
+
+        if (otp.length !== 6) {
+            showError('Please enter a 6-digit OTP');
+            return;
+        }
+
+        setLoading(verifyBtn, true);
+
+        try {
+            const response = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    ...registrationData,
+                    otp: otp
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Registration failed');
+            }
+
+            // Show success message
+            otpForm.style.display = 'none';
+            successMessage.style.display = 'block';
+
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            setLoading(verifyBtn, false);
+        }
+    });
+
+    // Resend OTP
+    resendBtn.addEventListener('click', async function() {
+        setLoading(resendBtn, true);
+
+        try {
+            const response = await fetch('/api/auth/send-otp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    phone_number: registrationData.phone
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to resend OTP');
+            }
+
+            showSuccess('OTP resent successfully!');
+
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            setLoading(resendBtn, false);
+        }
+    });
+
+    function setLoading(button, loading) {
+        const btnText = button.querySelector('.btn-text');
+        const btnLoading = button.querySelector('.btn-loading');
+        
+        if (loading) {
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'flex';
+            button.disabled = true;
+        } else {
+            btnText.style.display = 'block';
+            btnLoading.style.display = 'none';
+            button.disabled = false;
+        }
+    }
+
+    function showError(message) {
+        // Remove existing alerts
+        const existingAlert = document.querySelector('.alert');
+        if (existingAlert) {
+            existingAlert.remove();
+        }
+
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-error';
+        alert.textContent = message;
+        
+        const authCard = document.querySelector('.auth-card');
+        authCard.insertBefore(alert, authCard.firstChild);
+
+        setTimeout(() => {
+            alert.remove();
+        }, 5000);
+    }
+
+    function showSuccess(message) {
+        // Remove existing alerts
+        const existingAlert = document.querySelector('.alert');
+        if (existingAlert) {
+            existingAlert.remove();
+        }
+
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-success';
+        alert.textContent = message;
+        
+        const authCard = document.querySelector('.auth-card');
+        authCard.insertBefore(alert, authCard.firstChild);
+
+        setTimeout(() => {
+            alert.remove();
+        }, 5000);
+    }
+});
+</script>
+
+<style>
+.auth-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.auth-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    padding: 40px;
+    width: 100%;
+    max-width: 450px;
+    position: relative;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.auth-header h1 {
+    color: #333;
+    margin: 0 0 10px 0;
+    font-size: 28px;
+    font-weight: 600;
+}
+
+.auth-header p {
+    color: #666;
+    margin: 0;
+    font-size: 16px;
+}
+
+.auth-form {
+    margin-bottom: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #333;
+    font-weight: 500;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #e1e5e9;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s ease;
+    box-sizing: border-box;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.form-group small {
+    display: block;
+    margin-top: 5px;
+    color: #666;
+    font-size: 14px;
+}
+
+.auth-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    margin-bottom: 15px;
+}
+
+.auth-btn:hover {
+    transform: translateY(-2px);
+}
+
+.auth-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.auth-btn-secondary {
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    color: #667eea;
+    border: 2px solid #667eea;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.auth-btn-secondary:hover {
+    background: #667eea;
+    color: white;
+}
+
+.btn-loading {
+    display: none;
+    align-items: center;
+    gap: 10px;
+}
+
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.otp-header {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.otp-header h2 {
+    color: #333;
+    margin: 0 0 10px 0;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.otp-header p {
+    color: #666;
+    margin: 0;
+    font-size: 14px;
+}
+
+.success-message {
+    text-align: center;
+    padding: 20px;
+}
+
+.success-icon {
+    width: 60px;
+    height: 60px;
+    background: #10b981;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    font-weight: bold;
+    margin: 0 auto 20px auto;
+}
+
+.success-message h2 {
+    color: #333;
+    margin: 0 0 10px 0;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.success-message p {
+    color: #666;
+    margin: 0 0 25px 0;
+    font-size: 16px;
+}
+
+.auth-footer {
+    text-align: center;
+    padding-top: 20px;
+    border-top: 1px solid #e1e5e9;
+}
+
+.auth-footer p {
+    color: #666;
+    margin: 0;
+    font-size: 14px;
+}
+
+.auth-footer a {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.auth-footer a:hover {
+    text-decoration: underline;
+}
+
+.alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.alert-error {
+    background: #fee2e2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.alert-success {
+    background: #d1fae5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+}
+
+@media (max-width: 480px) {
+    .auth-card {
+        padding: 30px 20px;
+        margin: 10px;
+    }
+    
+    .auth-header h1 {
+        font-size: 24px;
+    }
+}
+</style>
+{% endblock %}
