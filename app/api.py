@@ -6,7 +6,7 @@ from fastapi.requests import Request
 from pydantic import BaseModel
 import psycopg2
 import psycopg2.extras
-from psycopg2 import pool
+# from psycopg2 import pool
 import sys
 import os
 import time
@@ -65,16 +65,17 @@ templates = Jinja2Templates(directory="templates")
 #     user=os.getenv("DB_USER", "postgres"),
 #     password=os.getenv("DB_PASSWORD", "root")
 # )
-DATABASE_URL = os.getenv("DATABASE_URL")
-connection_pool = psycopg2.connect(DATABASE_URL, sslmode="require")
+# DATABASE_URL = os.getenv("DATABASE_URL")
+# connection_pool = psycopg2.connect(DATABASE_URL, sslmode="require")
 
 def get_db():
-    """Get connection from pool"""
-    return connection_pool.getconn()
+    return psycopg2.connect(
+        os.getenv("DATABASE_URL"),
+        sslmode="require"
+    )
 
 def return_db(conn):
-    """Return connection to pool"""
-    connection_pool.putconn(conn)
+    conn.close()
 
 # Thread pool for parallel execution - Increased for faster processing
 executor = ThreadPoolExecutor(max_workers=30)  # Increased for better parallelism

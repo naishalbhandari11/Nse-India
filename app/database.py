@@ -15,41 +15,63 @@ print("CONNECTED")
 # Connection pool
 connection_pool = None
 
+# def init_db_pool():
+#     """Initialize database connection pool"""
+#     global connection_pool
+#     try:
+#         # connection_pool = SimpleConnectionPool(
+#         #     1, 20,  # min and max connections
+#         #     host=os.getenv("DB_HOST", "localhost"),
+#         #     port=int(os.getenv("DB_PORT", 5432)),
+#         #     database=os.getenv("DB_NAME", "NseStock"),
+#         #     user=os.getenv("DB_USER", "postgres"),
+#         #     password=os.getenv("DB_PASSWORD", "root")
+#         # )
+#         DATABASE_URL = os.getenv("DATABASE_URL")
+#         connection_pool = psycopg2.connect(DATABASE_URL, sslmode="require")
+#         print("[DB] Connection pool initialized")
+        
+#         # Create tables if they don't exist
+#         create_auth_tables()
+#         create_news_tables()
+        
+#     except Exception as e:
+#         print(f"[DB] Failed to initialize connection pool: {e}")
+
+
+
+# def get_db():
+#     """Get a database connection from the pool"""
+#     global connection_pool
+#     if connection_pool is None:
+#         init_db_pool()
+#     return connection_pool.getconn()
+
+# def return_db(conn):
+#     """Return a database connection to the pool"""
+#     global connection_pool
+#     if connection_pool:
+#         connection_pool.putconn(conn)
+
+
 def init_db_pool():
-    """Initialize database connection pool"""
     global connection_pool
-    try:
-        # connection_pool = SimpleConnectionPool(
-        #     1, 20,  # min and max connections
-        #     host=os.getenv("DB_HOST", "localhost"),
-        #     port=int(os.getenv("DB_PORT", 5432)),
-        #     database=os.getenv("DB_NAME", "NseStock"),
-        #     user=os.getenv("DB_USER", "postgres"),
-        #     password=os.getenv("DB_PASSWORD", "root")
-        # )
-        DATABASE_URL = os.getenv("DATABASE_URL")
-        connection_pool = psycopg2.connect(DATABASE_URL, sslmode="require")
-        print("[DB] Connection pool initialized")
-        
-        # Create tables if they don't exist
-        create_auth_tables()
-        create_news_tables()
-        
-    except Exception as e:
-        print(f"[DB] Failed to initialize connection pool: {e}")
+    connection_pool = SimpleConnectionPool(
+        1,
+        10,
+        dsn=os.getenv("DATABASE_URL"),
+        sslmode="require"
+    )
 
 def get_db():
-    """Get a database connection from the pool"""
     global connection_pool
     if connection_pool is None:
         init_db_pool()
     return connection_pool.getconn()
 
 def return_db(conn):
-    """Return a database connection to the pool"""
-    global connection_pool
-    if connection_pool:
-        connection_pool.putconn(conn)
+    connection_pool.putconn(conn)
+
 
 def create_auth_tables():
     """Create authentication-related tables"""
