@@ -64,10 +64,10 @@ connection_pool = None
 #     )
 
 def get_db():
-    global connection_pool
-    if connection_pool is None:
-        init_db_pool()
-    return connection_pool.getconn()
+    return psycopg2.connect(
+        os.getenv("DATABASE_URL"),
+        sslmode="require"
+    )
 
 def return_db(conn):
     connection_pool.putconn(conn)
@@ -205,4 +205,4 @@ def create_news_tables():
             pass
 
 # Initialize on import
-init_db_pool()
+# init_db_pool()
