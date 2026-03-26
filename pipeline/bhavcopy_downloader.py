@@ -51,6 +51,7 @@ HEADERS = {
 # DATABASE FUNCTIONS
 # =====================================
 def get_connection():
+<<<<<<< HEAD
     return psycopg2.connect(
         host=os.getenv("DB_HOST", "localhost"),
         port=int(os.getenv("DB_PORT", 5432)),
@@ -59,6 +60,17 @@ def get_connection():
         password=os.getenv("DB_PASSWORD", "root")
     )
 
+=======
+    # return psycopg2.connect(
+    #     host=os.getenv("DB_HOST", "localhost"),
+    #     port=int(os.getenv("DB_PORT", 5432)),
+    #     dbname=os.getenv("DB_NAME", "NseStock"),
+    #     user=os.getenv("DB_USER", "postgres"),
+    #     password=os.getenv("DB_PASSWORD", "root")
+    # )
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    return psycopg2.connect(DATABASE_URL, sslmode="require")
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
 def get_our_symbols():
     """Get our 2086 company symbols from database"""
     print("Loading our company symbols from database...")

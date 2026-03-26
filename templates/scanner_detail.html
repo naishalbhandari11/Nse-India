@@ -366,6 +366,7 @@
     }
 
     function computeStatsFromTrades(trades) {
+<<<<<<< HEAD
         const COMPLETED = new Set(['SUCCESS', 'FAIL', 'SOLD_OUT']);
 
         // 1-date-1-trade: merge all trades by date, pick best result per date
@@ -374,6 +375,28 @@
             const d   = t.buyDate;
             const res = t.result;
             const pl  = parseFloat(t.profitLoss) || 0;
+=======
+        const total = trades.length;
+        const succ  = trades.filter(t => t.result === 'SUCCESS').length;
+        const fail  = trades.filter(t => t.result === 'FAIL').length;
+        const sold  = trades.filter(t => t.result === 'SOLD_OUT').length;
+        const open  = trades.filter(t => t.result === 'OPEN').length;
+        const nt    = trades.filter(t => t.result === 'NOT_TRADED').length;
+        const executed = succ + fail + sold + open;
+        // Success rate: only completed trades as denominator (exclude OPEN and NOT_TRADED)
+        const completed = succ + fail + sold;
+        const rate  = completed > 0 ? (succ / completed * 100) : 0;
+
+        // 1-date-1-trade dedup for P/L only:
+        // For each unique date, pick the best P/L among completed trades.
+        // Priority: completed (SUCCESS/FAIL/SOLD_OUT) > OPEN > NOT_TRADED
+        const COMPLETED = new Set(['SUCCESS', 'FAIL', 'SOLD_OUT']);
+        const dateBest = {}; // date -> {pl, result}
+        trades.forEach(t => {
+            const d = t.buyDate;
+            const res = t.result;
+            const pl = parseFloat(t.profitLoss) || 0;
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
             if (!dateBest[d]) {
                 dateBest[d] = { pl, result: res };
             } else {
@@ -388,6 +411,7 @@
             }
         });
 
+<<<<<<< HEAD
         let profit = 0, loss = 0, sold = 0, open = 0, notTraded = 0, totalPL = 0;
         Object.values(dateBest).forEach(v => {
             if      (v.result === 'SUCCESS')    { profit++;   totalPL += v.pl; }
@@ -410,6 +434,22 @@
             not_traded: notTraded,
             success_rate: rate,
             avg_profit_loss: totalPL
+=======
+        // Sum P/L only from completed deduped trades
+        const pl = Object.values(dateBest).reduce((s, v) => {
+            return COMPLETED.has(v.result) ? s + v.pl : s;
+        }, 0);
+
+        return {
+            total_signals: total,
+            profit_signals: succ,
+            loss_signals: fail,
+            sold_out: sold,
+            open_trades: open,
+            not_traded: nt,
+            success_rate: rate,
+            avg_profit_loss: pl
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
         };
     }
 

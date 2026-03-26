@@ -668,11 +668,30 @@ function groupResultsByCompany(results) {
         group.max_success_rate = Math.max(group.max_success_rate, result.success_rate || 0);
     });
 
+<<<<<<< HEAD
     // 1-date-1-trade dedup: merge all indicator date maps, pick best result per date
     Object.values(grouped).forEach(group => {
         const COMPLETED = new Set(['SUCCESS', 'FAIL', 'SOLD_OUT']);
         const mergedPL  = {};  // date -> best pl
         const mergedRes = {};  // date -> best result
+=======
+    // Use raw sums for counts, but deduped P/L (1-date-1-trade, best P/L per date)
+    Object.values(grouped).forEach(group => {
+        group.profit_signals     = group.indicators.reduce((s, i) => s + (i.profit_signals    || 0), 0);
+        group.loss_signals       = group.indicators.reduce((s, i) => s + (i.loss_signals      || 0), 0);
+        group.sold_out_signals   = group.indicators.reduce((s, i) => s + (i.sold_out_signals  || 0), 0);
+        group.open_trades        = group.indicators.reduce((s, i) => s + (i.open_trades       || 0), 0);
+        group.not_traded_signals = group.indicators.reduce((s, i) => s + (i.not_traded_signals|| 0), 0);
+        group.total_signals      = group.indicators.reduce((s, i) => s + (i.total_signals     || 0), 0);
+        const total = group.total_signals;
+        const completedTotal = group.profit_signals + group.loss_signals + group.sold_out_signals;
+        group.max_success_rate = completedTotal > 0 ? (group.profit_signals / completedTotal * 100) : 0;
+
+        // Deduped P/L: merge date_pl_map across indicators, pick best P/L per date
+        const COMPLETED = new Set(['SUCCESS', 'FAIL', 'SOLD_OUT']);
+        const mergedPL = {};     // date -> pl
+        const mergedRes = {};    // date -> result
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
 
         let hasDateMaps = false;
         group.indicators.forEach(ind => {
@@ -686,7 +705,10 @@ function groupResultsByCompany(results) {
                     mergedRes[date] = res;
                 } else {
                     const exRes = mergedRes[date];
+<<<<<<< HEAD
                     // Priority: COMPLETED > OPEN > NOT_TRADED; within COMPLETED pick best P/L
+=======
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
                     if (COMPLETED.has(res) && !COMPLETED.has(exRes)) {
                         mergedPL[date] = pl; mergedRes[date] = res;
                     } else if (COMPLETED.has(res) && COMPLETED.has(exRes) && pl > mergedPL[date]) {
@@ -699,6 +721,7 @@ function groupResultsByCompany(results) {
         });
 
         if (hasDateMaps) {
+<<<<<<< HEAD
             // Counts from deduped map (1-date-1-trade)
             let profit = 0, loss = 0, sold = 0, open = 0, notTraded = 0;
             Object.entries(mergedRes).forEach(([date, res]) => {
@@ -716,12 +739,16 @@ function groupResultsByCompany(results) {
             group.total_signals      = Object.keys(mergedRes).length;
 
             // Deduped P/L: sum only completed trades
+=======
+            // Sum only completed deduped trades
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
             group.total_net_profit = Math.round(
                 Object.entries(mergedPL).reduce((s, [date, pl]) => {
                     return COMPLETED.has(mergedRes[date]) ? s + pl : s;
                 }, 0) * 100
             ) / 100;
         } else {
+<<<<<<< HEAD
             // Fallback: raw sums (no date maps available)
             group.profit_signals     = group.indicators.reduce((s, i) => s + (i.profit_signals    || 0), 0);
             group.loss_signals       = group.indicators.reduce((s, i) => s + (i.loss_signals      || 0), 0);
@@ -736,6 +763,13 @@ function groupResultsByCompany(results) {
 
         const completedTotal = group.profit_signals + group.loss_signals + group.sold_out_signals;
         group.max_success_rate = completedTotal > 0 ? (group.profit_signals / completedTotal * 100) : 0;
+=======
+            // Fallback: raw sum
+            group.total_net_profit = Math.round(
+                group.indicators.reduce((sum, ind) => sum + (ind.net_profit_loss || 0), 0) * 100
+            ) / 100;
+        }
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
     });
 
     return Object.values(grouped);

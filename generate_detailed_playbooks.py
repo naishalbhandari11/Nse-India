@@ -38,6 +38,7 @@ def generate_detailed_playbooks():
         f.flush()
 
         # 3. Connect to DB
+<<<<<<< HEAD
         conn = psycopg2.connect(
             host=os.getenv("DB_HOST", "localhost"),
             port=int(os.getenv("DB_PORT", 5432)),
@@ -45,6 +46,17 @@ def generate_detailed_playbooks():
             user=os.getenv("DB_USER", "postgres"),
             password=os.getenv("DB_PASSWORD", "root")
         )
+=======
+        # conn = psycopg2.connect(
+        #     host=os.getenv("DB_HOST", "localhost"),
+        #     port=int(os.getenv("DB_PORT", 5432)),
+        #     dbname=os.getenv("DB_NAME", "NseStock"),
+        #     user=os.getenv("DB_USER", "postgres"),
+        #     password=os.getenv("DB_PASSWORD", "root")
+        # )
+        DATABASE_URL = os.getenv("DATABASE_URL")
+        conn = psycopg2.connect(DATABASE_URL, sslmode="require")
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
         
         # 4. Process in Batches to save memory
         batch_size = 50

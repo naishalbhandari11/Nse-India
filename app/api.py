@@ -6,7 +6,11 @@ from fastapi.requests import Request
 from pydantic import BaseModel
 import psycopg2
 import psycopg2.extras
+<<<<<<< HEAD
 from psycopg2 import pool
+=======
+# from psycopg2 import pool
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
 import sys
 import os
 import time
@@ -56,6 +60,7 @@ templates = Jinja2Templates(directory="templates")
 # CONNECTION POOLING - CRITICAL OPTIMIZATION
 # =========================================================
 # Initialize connection pool (increased to match workers)
+<<<<<<< HEAD
 connection_pool = psycopg2.pool.ThreadedConnectionPool(
     minconn=10,
     maxconn=80,  # Increased to support 30 workers + API requests
@@ -73,6 +78,28 @@ def get_db():
 def return_db(conn):
     """Return connection to pool"""
     connection_pool.putconn(conn)
+=======
+# connection_pool = psycopg2.pool.ThreadedConnectionPool(
+#     minconn=10,
+#     maxconn=80,  # Increased to support 30 workers + API requests
+#     host=os.getenv("DB_HOST", "localhost"),
+#     port=int(os.getenv("DB_PORT", 5432)),
+#     database=os.getenv("DB_NAME", "NseStock"),
+#     user=os.getenv("DB_USER", "postgres"),
+#     password=os.getenv("DB_PASSWORD", "root")
+# )
+# DATABASE_URL = os.getenv("DATABASE_URL")
+# connection_pool = psycopg2.connect(DATABASE_URL, sslmode="require")
+
+def get_db():
+    return psycopg2.connect(
+        os.getenv("DATABASE_URL"),
+        sslmode="require"
+    )
+
+def return_db(conn):
+    conn.close()
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
 
 # Thread pool for parallel execution - Increased for faster processing
 executor = ThreadPoolExecutor(max_workers=30)  # Increased for better parallelism
@@ -879,6 +906,10 @@ def _analyze_worker(args):
 def analyze_all_signals_optimized(
     target: float = Query(5.0, description="Target profit percentage"),
     days: int = Query(30, description="Days to hold position"),
+<<<<<<< HEAD
+=======
+    limit: int = Query(50, description="Limit number of signals to analyze"),
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
     parallel: bool = Query(True, description="Use parallel processing")
 ):
     """
@@ -894,12 +925,21 @@ def analyze_all_signals_optimized(
     try:
         cur = conn.cursor()
         
+<<<<<<< HEAD
         # Get all current BUY signals (no limit)
+=======
+        # Get all current BUY signals
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
         cur.execute("""
             SELECT symbol, indicator
             FROM latest_buy_signals
             ORDER BY symbol, indicator
+<<<<<<< HEAD
         """)
+=======
+            LIMIT %s
+        """, (limit,))
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
         
         signals = cur.fetchall()
         
@@ -1520,7 +1560,12 @@ def analyze_indicator(
 def analyze_by_indicator_type(
     indicator_type: str = Query(..., description="Indicator type: SMA, RSI, BB, MACD, STOCH"),
     target: float = Query(5.0),
+<<<<<<< HEAD
     days: int = Query(30)
+=======
+    days: int = Query(30),
+    limit: int = Query(50)
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
 ):
     """Analyze all BUY signals for a specific indicator type"""
     conn = get_db()
@@ -1541,13 +1586,22 @@ def analyze_by_indicator_type(
         if not where_clause:
             return {"error": f"Unknown indicator type: {indicator_type}"}
         
+<<<<<<< HEAD
         # Get signals (no limit)
+=======
+        # Get signals
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
         cur.execute(f"""
             SELECT symbol, indicator
             FROM latest_buy_signals
             WHERE {where_clause}
             ORDER BY symbol, indicator
+<<<<<<< HEAD
         """)
+=======
+            LIMIT %s
+        """, (limit,))
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
         
         signals = cur.fetchall()
         
@@ -1598,7 +1652,12 @@ def analyze_by_indicator_type(
 def analyze_power_signals(
     min_signals: int = Query(3, ge=2, le=10),
     target: float = Query(5.0),
+<<<<<<< HEAD
     days: int = Query(30)
+=======
+    days: int = Query(30),
+    limit: int = Query(20)
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
 ):
     """Analyze stocks with multiple BUY signals (power signals)"""
     conn = get_db()
@@ -1606,7 +1665,11 @@ def analyze_power_signals(
     try:
         cur = conn.cursor()
         
+<<<<<<< HEAD
         # Get power signals (no limit)
+=======
+        # Get power signals
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
         cur.execute("""
             SELECT 
                 symbol,
@@ -1616,7 +1679,12 @@ def analyze_power_signals(
             GROUP BY symbol
             HAVING COUNT(*) >= %s
             ORDER BY signal_count DESC
+<<<<<<< HEAD
         """, (min_signals,))
+=======
+            LIMIT %s
+        """, (min_signals, limit))
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
         
         power_stocks = cur.fetchall()
         
@@ -2821,7 +2889,12 @@ PROGRESSIVE_CACHE_TTL = 300  # Not used - cache is infinite (until server restar
 @app.get("/api/analyze-fast")
 def analyze_fast(
     target: float = Query(5.0, description="Target profit percentage"),
+<<<<<<< HEAD
     days: int = Query(30, description="Days to hold position")
+=======
+    days: int = Query(30, description="Days to hold position"),
+    limit: int = Query(10000, ge=1, le=10000, description="Maximum number of signals to analyze")
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
 ):
     """
     ULTRA-FAST VERSION with request-scoped caching
@@ -2843,7 +2916,12 @@ def analyze_fast(
             SELECT symbol, indicator
             FROM latest_buy_signals
             ORDER BY symbol, indicator
+<<<<<<< HEAD
         """)
+=======
+            LIMIT %s
+        """, (limit,))
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
         
         signals = cur.fetchall()
         
@@ -2923,7 +3001,12 @@ def analyze_fast(
 @app.get("/api/analyze-grouped")
 def analyze_grouped(
     target: float = Query(5.0, description="Target profit percentage"),
+<<<<<<< HEAD
     days: int = Query(30, description="Days to hold position")
+=======
+    days: int = Query(30, description="Days to hold position"),
+    limit: int = Query(10000, ge=1, le=10000, description="Maximum number of signals to analyze")
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
 ):
     """
     Analyze signals grouped by company symbol
@@ -2943,7 +3026,12 @@ def analyze_grouped(
             SELECT symbol, indicator
             FROM latest_buy_signals
             ORDER BY symbol, indicator
+<<<<<<< HEAD
         """)
+=======
+            LIMIT %s
+        """, (limit,))
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
         
         signals = cur.fetchall()
         

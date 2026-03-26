@@ -302,6 +302,7 @@
     }
 
     function computeStats(trades) {
+<<<<<<< HEAD
         const COMPLETED = new Set(['SUCCESS', 'FAIL', 'SOLD_OUT']);
 
         // 1-date-1-trade: merge all trades by date, pick best result per date
@@ -337,6 +338,27 @@
         const rate      = completed > 0 ? (succ / completed * 100) : 0;
 
         return { total, succ, fail, sold, open, rate, totalPL };
+=======
+        const succ = trades.filter(t => t.result === 'SUCCESS').length;
+        const fail = trades.filter(t => t.result === 'FAIL').length;
+        const sold = trades.filter(t => t.result === 'SOLD_OUT').length;
+        const open = trades.filter(t => t.result === 'OPEN').length;
+        const completed = succ + fail + sold;
+        const rate = completed > 0 ? (succ / completed * 100) : 0;
+        const COMPLETED = new Set(['SUCCESS', 'FAIL', 'SOLD_OUT']);
+        const dateBest = {};
+        trades.forEach(t => {
+            const pl = parseFloat(t.profitLoss) || 0;
+            if (!dateBest[t.buyDate]) { dateBest[t.buyDate] = { pl, result: t.result }; }
+            else {
+                const ex = dateBest[t.buyDate];
+                if (COMPLETED.has(t.result) && !COMPLETED.has(ex.result)) dateBest[t.buyDate] = { pl, result: t.result };
+                else if (COMPLETED.has(t.result) && COMPLETED.has(ex.result) && pl > ex.pl) dateBest[t.buyDate] = { pl, result: t.result };
+            }
+        });
+        const totalPL = Object.values(dateBest).reduce((s, v) => COMPLETED.has(v.result) ? s + v.pl : s, 0);
+        return { total: trades.length, succ, fail, sold, open, rate, totalPL };
+>>>>>>> 5563257e981e470e0187565e49369889f345f1c5
     }
 
     function updateSummaryStats(s) {
