@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}NSE Stock Analysis{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css?v=5.3">
+    <link rel="stylesheet" href="/static/dashboard-new.css?v=5.1">
+    <link rel="stylesheet" href="/static/onboarding.css?v=5.1">
+    <script src="/static/lightweight-charts.js"></script>
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-brand">📊 NSE Stock Analysis</a>
+            
+            <!-- Global Company Search -->
+            <div class="nav-search-wrapper">
+                <div class="nav-search-box">
+                    <input type="text" id="globalSearch" class="nav-search-input"
+                        placeholder="🔍 Search any company..." autocomplete="off">
+                    <button id="clearGlobalSearch" class="nav-clear-btn" style="display: none;">✕</button>
+                </div>
+                <div class="nav-search-results hidden" id="globalSearchResults"></div>
+            </div>
+            
+            <!-- Support Menu / Reports Buttons -->
+            <div class="nav-report-wrapper" style="display: flex; gap: 10px; align-items: center;">
+                <button id="advancedScannerBtn" class="nav-btn-secondary" title="Advanced Stock Scanner">
+                    🔍 Scan
+                </button>
+                <button id="performanceBtn" class="nav-btn-secondary" title="Historical Performance Scanner" onclick="window.open('/performance', '_blank')" style="color:#7c3aed; border-color:#7c3aed;">
+                    📈 Performance
+                </button>
+                <button id="generateReportBtn" class="nav-btn-secondary" title="Export last 30 days data as PDF">
+                    📄 Export
+                </button>
+                <!-- Debug Onboarding Button -->
+                <button id="debugOnboardingBtn" class="nav-btn-secondary" title="Test Onboarding Tour" style="color: #10b981; border-color: #10b981; display: none;">
+                    🎯 Test Tour
+                </button>
+            </div>
+
+            <!-- Authentication -->
+            <div class="nav-auth-wrapper">
+                <div id="authButtons" class="auth-buttons">
+                    <a href="/login" class="nav-auth-btn login-btn">Login</a>
+                    <a href="/register" class="nav-auth-btn register-btn">Register</a>
+                </div>
+                <div id="userMenu" class="user-menu" style="display: none;">
+                    <div class="user-info">
+                        <span class="user-name" id="userName">User</span>
+                        <span class="user-email" id="userEmail">user@example.com</span>
+                    </div>
+                    <button id="logoutBtn" class="logout-btn">Logout</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div id="notificationContainer" class="notification-container"></div>
+
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="/static/script.js?v=5.15"></script>
+    <script src="/static/onboarding.js?v=4.0"></script>
+    
+    <!-- Authentication Script -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const authButtons = document.getElementById('authButtons');
+        const userMenu = document.getElementById('userMenu');
+        const userName = document.getElementById('userName');
+        const userEmail = document.getElementById('userEmail');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        // Check authentication status
+        checkAuthStatus();
+
+        // Logout functionality
+        logoutBtn.addEventListener('click', function() {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('user_data');
+            
+            // Clear cookie
+            document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+            
+            authButtons.style.display = 'flex';
+            userMenu.style.display = 'none';
+            
+            // Redirect to login
+            window.location.href = '/login';
+        });
+
+        function checkAuthStatus() {
+            const token = localStorage.getItem('access_token');
+            const userData = localStorage.getItem('user_data');
+
+            if (token && userData) {
+                try {
+                    const user = JSON.parse(userData);
+                    
+                    // Verify token is still valid
+                    fetch('/api/auth/me', {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            // User is authenticated
+                            showUserMenu(user);
+                        } else {
+                            // Token is invalid
+                            clearAuth();
+                        }
+                    })
+                    .catch(() => {
+                        clearAuth();
+                    });
+                } catch (e) {
+                    clearAuth();
+                }
+            } else {
+                showAuthButtons();
+            }
+        }
+
+        function showUserMenu(user) {
+            authButtons.style.display = 'none';
+            userMenu.style.display = 'flex';
+            userName.textContent = user.name;
+            userEmail.textContent = user.email;
+            
+            // Show debug onboarding button for logged-in users
+            const debugBtn = document.getElementById('debugOnboardingBtn');
+            if (debugBtn) {
+                debugBtn.style.display = 'inline-block';
+                debugBtn.addEventListener('click', function() {
+                    if (window.onboardingTour) {
+                        // Clear completion status for testing
+                        localStorage.removeItem(`onboarding_completed_${user.email}`);
+                        sessionStorage.clear(); // Clear any tour state
+                        console.log('[DEBUG] Triggering onboarding tour...');
+                        window.onboardingTour.triggerOnboarding();
+                    }
+                });
+            }
+            
+            // Trigger onboarding for new users
+            if (window.onboardingTour) {
+                console.log('[AUTH] Initializing onboarding for user:', user);
+                window.onboardingTour.init(user);
+            }
+        }
+
+        function showAuthButtons() {
+            authButtons.style.display = 'flex';
+            userMenu.style.display = 'none';
+            
+            // Hide debug button when not logged in
+            const debugBtn = document.getElementById('debugOnboardingBtn');
+            if (debugBtn) {
+                debugBtn.style.display = 'none';
+            }
+        }
+
+        function clearAuth() {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('user_data');
+            
+            // Clear cookie
+            document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+            
+            showAuthButtons();
+        }
+
+        // Add authorization header to all API requests
+        const originalFetch = window.fetch;
+        window.fetch = function(url, options = {}) {
+            const token = localStorage.getItem('access_token');
+            if (token && url.startsWith('/api/')) {
+                options.headers = options.headers || {};
+                options.headers['Authorization'] = `Bearer ${token}`;
+            }
+            return originalFetch(url, options);
+        };
+    });
+    </script>
+    
+    <!-- AI Chatbot - Available on all pages except login/register -->
+    <script>
+    if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register')) {
+        const s = document.createElement('script');
+        s.src = '/static/chatbot.js?v=1.3';
+        s.async = false;
+        document.body.appendChild(s);
+    }
+    </script>
+
+    <style>
+    .nav-auth-wrapper {
+        display: flex;
+        align-items: center;
+        margin-left: 15px;
+    }
+
+    .auth-buttons {
+        display: flex;
+        gap: 12px;
+    }
+
+    .nav-btn-secondary {
+        padding: 5px 12px;
+        border-radius: 9999px;
+        background: white;
+        color: #3b82f6;
+        border: 1px solid #3b82f6;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .nav-btn-secondary:hover {
+        background: #f0f9ff;
+        box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+    }
+
+    .nav-auth-btn {
+        padding: 6px 16px;
+        border-radius: 9999px;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+
+    .login-btn {
+        color: #667eea;
+        border: 1px solid #667eea;
+        background: transparent;
+    }
+
+    .login-btn:hover {
+        background: #667eea;
+        color: white;
+    }
+
+    .register-btn {
+        background: #667eea;
+        color: white;
+        border: 1px solid #667eea;
+    }
+
+    .register-btn:hover {
+        background: #5a67d8;
+        border-color: #5a67d8;
+    }
+
+    .user-menu {
+        display: none;
+        align-items: center;
+        gap: 12px;
+        padding: 4px 10px;
+        background: #f8fafc;
+        border-radius: 9999px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .user-info {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+    }
+
+    .user-name {
+        color: #0f172a;
+        font-weight: 600;
+        font-size: 13px;
+    }
+
+    .user-email {
+        color: #64748b;
+        font-size: 11px;
+    }
+
+    .logout-btn {
+        padding: 4px 12px;
+        background: #f1f5f9;
+        color: #ef4444;
+        border: 1px solid #e2e8f0;
+        border-radius: 9999px;
+        font-weight: 600;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .logout-btn:hover {
+        background: #fee2e2;
+        border-color: #fecaca;
+    }
+
+    @media (max-width: 768px) {
+        .nav-auth-wrapper {
+            margin-left: 10px;
+        }
+        
+        .auth-buttons {
+            gap: 5px;
+        }
+        
+        .nav-auth-btn {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        .user-info {
+            display: none;
+        }
+    }
+    </style>
+
+</body>
+
+</html>

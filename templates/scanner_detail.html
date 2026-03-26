@@ -1,0 +1,998 @@
+{% extends "base.html" %}
+
+{% block title %}{{ symbol }} - Performance Analysis{% endblock %}
+
+{% block content %}
+<style>
+    .multi-indicator-controls {
+        display: none; /* removed */
+    }
+
+    /* ── Pill multi-select for indicator filter in Trade History header ── */
+    .ind-ms-wrap { position: relative; }
+    .ind-ms-trigger {
+        display: flex; align-items: center; justify-content: space-between; gap: 6px;
+        padding: 0 10px; height: 30px; min-width: 150px;
+        background: #fff; border: 1px solid #cbd5e1; border-radius: 6px;
+        cursor: pointer; font-size: 0.75rem; font-weight: 500; color: #0f172a;
+        user-select: none; white-space: nowrap;
+    }
+    .ind-ms-trigger:hover { border-color: #3b82f6; }
+    .ind-ms-dropdown {
+        position: absolute; top: calc(100% + 4px); right: 0; z-index: 9999;
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        width: 260px; padding: 8px;
+    }
+    .ind-ms-header { display: flex; gap: 6px; margin-bottom: 8px; }
+    .ind-ms-all, .ind-ms-clear {
+        flex: 1; padding: 4px 0; border: none; border-radius: 4px;
+        font-size: 0.7rem; font-weight: 700; cursor: pointer;
+    }
+    .ind-ms-all  { background: #dcfce7; color: #166534; }
+    .ind-ms-clear{ background: #fee2e2; color: #991b1b; }
+    .ind-ms-pills {
+        display: flex; flex-wrap: wrap; gap: 5px; max-height: 200px; overflow-y: auto;
+    }
+    .ind-ms-pill {
+        display: flex; align-items: center; gap: 4px;
+        padding: 3px 8px; border-radius: 999px; cursor: pointer;
+        font-size: 0.7rem; font-weight: 600;
+        background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;
+        transition: all 0.15s; user-select: none;
+    }
+    .ind-ms-pill:hover { border-color: #3b82f6; color: #2563eb; }
+    .ind-ms-pill input[type=checkbox] { display: none; }
+    .ind-ms-pill.selected { background: #eff6ff; color: #1d4ed8; border-color: #93c5fd; }
+</style>
+<div class="scanner-detail-page">
+    <!-- Header -->
+    <div class="detail-header">
+        <a href="/advanced-scanner" class="back-link">← Back to Scanner</a>
+        <h1>{{ symbol }}</h1>
+        <div class="header-params">
+            <span>Target: <strong id="headerTarget">-</strong>%</span>
+            <span>Stop Loss: <strong id="headerStopLoss">-</strong>%</span>
+            <span>Days: <strong id="headerDays">-</strong></span>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>Loading performance data...</p>
+    </div>
+
+        <!-- Multi-indicator Filter Controls (hidden - replaced by inline pill select) -->
+        <div class="section multi-indicator-controls"></div>
+
+    <!-- Results Content -->
+    <div id="resultsSection" style="display: none;">
+        <!-- Summary Stats -->
+        <div class="summary-stats">
+            <div class="stat-item">
+                <span class="stat-label">Total Signals</span>
+                <span class="stat-value" id="totalSignals">-</span>
+            </div>
+            <div class="stat-item success">
+                <span class="stat-label">Hit Target</span>
+                <span class="stat-value" id="successfulTrades">-</span>
+            </div>
+            <div class="stat-item failure">
+                <span class="stat-label">Hit Stop Loss</span>
+                <span class="stat-value" id="failedTrades">-</span>
+            </div>
+            <div class="stat-item sold">
+                <span class="stat-label">Sold Out</span>
+                <span class="stat-value" id="soldTrades">-</span>
+            </div>
+            <div class="stat-item open">
+                <span class="stat-label">Open Trades</span>
+                <span class="stat-value" id="openTrades">-</span>
+            </div>
+            <div class="stat-item rate">
+                <span class="stat-label">Success Rate</span>
+                <span class="stat-value" id="successRate">-</span>
+            </div>
+            <div class="stat-item profit">
+                <span class="stat-label">Total P/L</span>
+                <span class="stat-value" id="avgProfitLoss">-</span>
+            </div>
+        </div>
+        <!-- Historical Trades Table -->
+        <div class="section">
+            <div class="section-header">
+                <h2>📋 Trade History with Stop Loss Analysis</h2>
+                <div class="filter-controls">
+                    <!-- Pill multi-select indicator filter -->
+                    <div class="ind-ms-wrap" id="detailIndMs">
+                        <div class="ind-ms-trigger" id="detailIndTrigger">
+                            <span id="detailIndTriggerText">All Indicators</span>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                        <div class="ind-ms-dropdown" id="detailIndDropdown" style="display:none;">
+                            <div class="ind-ms-header">
+                                <button type="button" class="ind-ms-all" id="detailIndAll">✓ ALL</button>
+                                <button type="button" class="ind-ms-clear" id="detailIndClear">✕ CLEAR</button>
+                            </div>
+                            <div class="ind-ms-pills" id="detailIndPills">
+                                <!-- Pills populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+                    <select id="entryPriceFilter" class="filter-select">
+                        <option value="ALL">All Entry Prices</option>
+                        <optgroup label="Aggressive Entry (Above Signal)">
+                            <option value="2.0">+2.0% Above Signal Price</option>
+                            <option value="1.0">+1.0% Above Signal Price</option>
+                            <option value="0.5">+0.5% Above Signal Price</option>
+                            <option value="0.2">+0.2% Above Signal Price</option>
+                            <option value="0.1">+0.1% Above Signal Price</option>
+                        </optgroup>
+                        <optgroup label="At Signal Price">
+                            <option value="0.0">Exactly at Signal Price</option>
+                        </optgroup>
+                        <optgroup label="Conservative Entry (Below Signal)">
+                            <option value="-0.1">-0.1% Below Signal Price</option>
+                            <option value="-0.2">-0.2% Below Signal Price</option>
+                            <option value="-0.5">-0.5% Below Signal Price</option>
+                            <option value="-1.0">-1.0% Below Signal Price</option>
+                            <option value="-2.0">-2.0% Below Signal Price</option>
+                            <option value="-3.0">-3.0% Below Signal Price</option>
+                            <option value="-5.0">-5.0% Below Signal Price</option>
+                        </optgroup>
+                    </select>
+                </div>
+            </div>
+            <div id="filteredStats" class="filtered-stats" style="display: none;">
+                <div class="stats-row">
+                    <span class="stat-item">Filtered Trades: <strong id="filteredCount">0</strong></span>
+                    <span class="stat-item">Success Rate: <strong id="filteredSuccessRate">0%</strong></span>
+                    <span class="stat-item">Total P/L: <strong id="filteredAvgPL">0%</strong></span>
+                </div>
+            </div>
+            <table class="data-table trades-table">
+                <thead>
+                    <tr>
+                        <th>BUY DATE</th>
+                        <th>INDICATOR</th>
+                        <th>ENTRY PRICE</th>
+                        <th>FIRST DAY PRICE</th>
+                        <th>EXECUTION</th>
+                        <th>TARGET PRICE</th>
+                        <th>STOP LOSS</th>
+                        <th>HIGH REACHED</th>
+                        <th>LOW REACHED</th>
+                        <th>EXIT PRICE</th>
+                        <th>DAYS</th>
+                        <th>RESULT</th>
+                        <th>P/L %</th>
+                    </tr>
+                </thead>
+                <tbody id="tradesTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Helper: display MACD indicators with full prefix
+    function macdDisplay(ind) {
+        if (!ind) return '-';
+        if (ind === 'Short' || ind === 'Long' || ind === 'Standard') return `MACD_${ind}`;
+        return ind;
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const symbol = "{{ symbol }}";
+    
+    // Initial state from URL
+    let initialIndicatorParam = urlParams.get('indicator') || 'ALL';
+    let selectedIndicators = initialIndicatorParam === 'ALL' ? [] : initialIndicatorParam.split(',').filter(i => i.length > 0);
+    
+    const target = parseFloat(urlParams.get('target')) || 5;
+    const stopLoss = parseFloat(urlParams.get('stop_loss')) || 3;
+    const days = parseInt(urlParams.get('days')) || 30;
+    const fromDate = urlParams.get('from_date') || '';
+    const toDate = urlParams.get('to_date') || '';
+
+    let allIndicatorData = [];
+    let allTradesData = [];
+    let availableIndicatorsList = [];
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Update header
+        document.getElementById('headerTarget').textContent = target;
+        document.getElementById('headerStopLoss').textContent = stopLoss;
+        document.getElementById('headerDays').textContent = days;
+
+        initDetailIndMultiSelect();
+        
+        console.log('📄 [DETAIL PAGE] Initializing with indicators:', selectedIndicators);
+        loadInitialData();
+    });
+
+    // ── Pill multi-select for Trade History indicator filter ──────────────
+    function initDetailIndMultiSelect() {
+        const trigger  = document.getElementById('detailIndTrigger');
+        const dropdown = document.getElementById('detailIndDropdown');
+        if (!trigger || !dropdown) return;
+
+        trigger.addEventListener('click', e => {
+            e.stopPropagation();
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        });
+        document.addEventListener('click', e => {
+            if (!document.getElementById('detailIndMs')?.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+        document.getElementById('detailIndAll').addEventListener('click', () => {
+            selectedIndicators = [...availableIndicatorsList];
+            updateDetailIndPills();
+            applyTableFilters();
+        });
+        document.getElementById('detailIndClear').addEventListener('click', () => {
+            selectedIndicators = [];
+            updateDetailIndPills();
+            applyTableFilters();
+        });
+    }
+
+    function populateDetailIndPills(indicators) {
+        const container = document.getElementById('detailIndPills');
+        if (!container) return;
+        container.innerHTML = '';
+        indicators.forEach(ind => {
+            const label = document.createElement('label');
+            label.className = 'ind-ms-pill' + (selectedIndicators.includes(ind) ? ' selected' : '');
+            label.innerHTML = `<input type="checkbox" value="${ind}" ${selectedIndicators.includes(ind) ? 'checked' : ''}>${macdDisplay(ind)}`;
+            label.querySelector('input').addEventListener('change', function() {
+                if (this.checked) {
+                    if (!selectedIndicators.includes(ind)) selectedIndicators.push(ind);
+                } else {
+                    selectedIndicators = selectedIndicators.filter(i => i !== ind);
+                }
+                label.classList.toggle('selected', this.checked);
+                updateDetailIndTriggerText();
+                applyTableFilters();
+            });
+            container.appendChild(label);
+        });
+        updateDetailIndTriggerText();
+    }
+
+    function updateDetailIndPills() {
+        document.querySelectorAll('#detailIndPills .ind-ms-pill').forEach(pill => {
+            const cb = pill.querySelector('input');
+            const checked = selectedIndicators.includes(cb.value);
+            cb.checked = checked;
+            pill.classList.toggle('selected', checked);
+        });
+        updateDetailIndTriggerText();
+    }
+
+    function updateDetailIndTriggerText() {
+        const el = document.getElementById('detailIndTriggerText');
+        if (!el) return;
+        if (selectedIndicators.length === 0 || selectedIndicators.length === availableIndicatorsList.length) {
+            el.textContent = 'All Indicators';
+        } else if (selectedIndicators.length <= 3) {
+            el.textContent = selectedIndicators.map(macdDisplay).join(', ');
+        } else {
+            el.textContent = `${selectedIndicators.length} Indicators`;
+        }
+    }
+
+    async function loadInitialData() {
+        try {
+            document.getElementById('loadingState').style.display = 'block';
+
+            if (initialIndicatorParam !== 'ALL') {
+                // Use only the indicators passed from the scanner (e.g. RSI14,STOCH50,STOCH21)
+                availableIndicatorsList = initialIndicatorParam.split(',').filter(i => i.length > 0);
+                selectedIndicators = [...availableIndicatorsList];
+            } else {
+                // ALL — fetch every indicator that has a BUY signal for this symbol
+                const indicatorsResponse = await fetch(`/api/symbol/${encodeURIComponent(symbol)}/indicators`);
+                const indicatorsData = await indicatorsResponse.json();
+                const seen = new Set();
+                availableIndicatorsList = [];
+                indicatorsData.forEach(record => {
+                    if (record.signal === 'BUY' && !seen.has(record.indicator)) {
+                        seen.add(record.indicator);
+                        availableIndicatorsList.push(record.indicator);
+                    }
+                });
+                availableIndicatorsList.sort();
+                selectedIndicators = [];  // empty = "All"
+            }
+
+            populateDetailIndPills(availableIndicatorsList);
+            await loadPerformanceData();
+
+        } catch (error) {
+            console.error('Error in initial load:', error);
+            showError(error.message);
+        }
+    }
+
+    function refreshWithNewSelection() {
+        // Update URL and reload data
+        const newIndicatorParam = selectedIndicators.length > 0 ? selectedIndicators.join(',') : 'ALL';
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('indicator', newIndicatorParam);
+        window.history.pushState({}, '', newUrl);
+        
+        loadPerformanceData();
+    }
+
+    async function loadPerformanceData() {
+        try {
+            console.log('⏳ [LOAD] Loading data for:', selectedIndicators.length > 0 ? selectedIndicators : 'ALL');
+            document.getElementById('loadingState').style.display = 'block';
+            document.getElementById('resultsSection').style.display = 'none';
+
+            // Join selected indicators for the API call
+            const indParam = selectedIndicators.length > 0 ? selectedIndicators.join(',') : 'ALL';
+            
+            let apiUrl = `/api/scanner/analyze?symbol=${encodeURIComponent(symbol)}&indicator=${encodeURIComponent(indParam)}&target=${target}&stop_loss=${stopLoss}&days=${days}`;
+            if (fromDate) apiUrl += `&from_date=${fromDate}`;
+            if (toDate) apiUrl += `&to_date=${toDate}`;
+
+            console.log('🌐 [API] Fetching:', apiUrl);
+            const response = await fetch(apiUrl);
+            const data = await response.json();
+
+            if (data.error) throw new Error(data.error);
+
+            // Store all trades first
+            allIndicatorData = data.indicatorBreakdown || [];
+            allTradesData = data.details || [];
+            allTradesData.sort((a, b) => new Date(b.buyDate) - new Date(a.buyDate));
+
+            displayIndicatorPerformance(allIndicatorData);
+            populateTableIndicatorFilter(allIndicatorData); // wires entryPriceFilter
+            applyTableFilters(); // applies indicator + entry price filters, renders table + updates stats
+
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'block';
+
+        } catch (error) {
+            console.error('Error loading performance data:', error);
+            showError('Failed to load: ' + error.message);
+        }
+    }
+
+    function computeStatsFromTrades(trades) {
+        const COMPLETED = new Set(['SUCCESS', 'FAIL', 'SOLD_OUT']);
+
+        // 1-date-1-trade: merge all trades by date, pick best result per date
+        const dateBest = {};
+        trades.forEach(t => {
+            const d   = t.buyDate;
+            const res = t.result;
+            const pl  = parseFloat(t.profitLoss) || 0;
+            if (!dateBest[d]) {
+                dateBest[d] = { pl, result: res };
+            } else {
+                const ex = dateBest[d];
+                if (COMPLETED.has(res) && !COMPLETED.has(ex.result)) {
+                    dateBest[d] = { pl, result: res };
+                } else if (COMPLETED.has(res) && COMPLETED.has(ex.result) && pl > ex.pl) {
+                    dateBest[d] = { pl, result: res };
+                } else if (res === 'OPEN' && ex.result === 'NOT_TRADED') {
+                    dateBest[d] = { pl, result: res };
+                }
+            }
+        });
+
+        let profit = 0, loss = 0, sold = 0, open = 0, notTraded = 0, totalPL = 0;
+        Object.values(dateBest).forEach(v => {
+            if      (v.result === 'SUCCESS')    { profit++;   totalPL += v.pl; }
+            else if (v.result === 'FAIL')       { loss++;     totalPL += v.pl; }
+            else if (v.result === 'SOLD_OUT')   { sold++;     totalPL += v.pl; }
+            else if (v.result === 'OPEN')       { open++; }
+            else if (v.result === 'NOT_TRADED') { notTraded++; }
+        });
+
+        const total     = Object.keys(dateBest).length;
+        const completed = profit + loss + sold;
+        const rate      = completed > 0 ? (profit / completed * 100) : 0;
+
+        return {
+            total_signals: total,
+            profit_signals: profit,
+            loss_signals: loss,
+            sold_out: sold,
+            open_trades: open,
+            not_traded: notTraded,
+            success_rate: rate,
+            avg_profit_loss: totalPL
+        };
+    }
+
+    function updateSummaryStats(totals) {
+        document.getElementById('totalSignals').textContent = totals.total_signals;
+        document.getElementById('successfulTrades').textContent = totals.profit_signals;
+        document.getElementById('failedTrades').textContent = totals.loss_signals;
+        document.getElementById('soldTrades').textContent = totals.sold_out;
+        document.getElementById('openTrades').textContent = totals.open_trades;
+        document.getElementById('successRate').textContent = parseFloat(totals.success_rate).toFixed(1) + '%';
+        
+        const plValue = parseFloat(totals.avg_profit_loss);
+        const plElement = document.getElementById('avgProfitLoss');
+        plElement.textContent = (plValue >= 0 ? '+' : '') + plValue.toFixed(2) + '%';
+        plElement.parentElement.className = 'stat-item ' + (plValue >= 0 ? 'profit' : 'failure');
+    }
+
+    function displayIndicatorPerformance(breakdown) {
+        const tbody = document.getElementById('indicatorTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (breakdown.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="center">No data available for selected indicators</td></tr>';
+            return;
+        }
+
+        breakdown.forEach(ind => {
+            const successRate = (ind.successful + ind.failed + (ind.soldOut || 0)) > 0
+                ? (ind.successful / (ind.successful + ind.failed + (ind.soldOut || 0)) * 100) : 0;
+            const successClass = successRate >= 70 ? 'success-high' : successRate >= 50 ? 'success-medium' : 'success-low';
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><strong>${macdDisplay(ind.indicator)}</strong></td>
+                <td class="center">${ind.totalSignals}</td>
+                <td class="center success">${ind.successful}</td>
+                <td class="center failure">${ind.failed}</td>
+                <td class="center sold">${ind.soldOut || 0}</td>
+                <td class="center">${ind.open}</td>
+                <td class="center"><span class="badge ${successClass}">${successRate.toFixed(1)}%</span></td>
+                <td class="center ${ind.netProfit >= 0 ? 'profit' : 'loss'}">
+                    <strong>${ind.netProfit >= 0 ? '+' : ''}${ind.netProfit.toFixed(2)}%</strong>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    function populateTableIndicatorFilter(breakdown) {
+        // Pills are populated via populateDetailIndPills — nothing to do here.
+        // Wire up entryPriceFilter once after first data load.
+        const entryFilter = document.getElementById('entryPriceFilter');
+        if (entryFilter && !entryFilter._wired) {
+            entryFilter.addEventListener('change', () => applyTableFilters());
+            entryFilter._wired = true;
+        }
+    }
+
+    function applyTableFilters() {
+        const entryTolerance = document.getElementById('entryPriceFilter').value;
+        
+        let filtered = [...allTradesData];
+        
+        // Filter by selected indicators (pill multi-select)
+        if (selectedIndicators.length > 0 && selectedIndicators.length < availableIndicatorsList.length) {
+            filtered = filtered.filter(t => selectedIndicators.includes(t.indicator));
+        }
+        
+        if (entryTolerance !== 'ALL') {
+            const entryAdjustment = parseFloat(entryTolerance);
+            
+            filtered = filtered.filter(trade => {
+                const signalPrice = parseFloat(trade.buyPrice);
+                const firstDayLow = parseFloat(trade.firstDayLow) || signalPrice;
+                const desiredEntryPrice = signalPrice * (1 + entryAdjustment / 100);
+                
+                if (entryAdjustment >= 0) {
+                    return true; // Aggressive or at signal price always executes in this simple view
+                } else {
+                    return firstDayLow <= desiredEntryPrice + 0.001;
+                }
+            });
+        }
+        
+        updateFilteredStats(filtered);
+        displayTrades(filtered);
+        // Update summary header to match filtered rows
+        updateSummaryStats(computeStatsFromTrades(filtered));
+    }
+
+    function updateFilteredStats(trades) {
+        const filteredStatsDiv = document.getElementById('filteredStats');
+        if (!filteredStatsDiv) return;
+        
+        if (trades.length === allTradesData.length) {
+            filteredStatsDiv.style.display = 'none';
+            return;
+        }
+
+        filteredStatsDiv.style.display = 'block';
+        
+        const totalTrades = trades.length;
+        const successfulTrades = trades.filter(t => t.result === 'SUCCESS').length;
+        const failedTrades = trades.filter(t => t.result === 'FAIL').length;
+        const soldTrades = trades.filter(t => t.result === 'SOLD_OUT').length;
+        // Success rate: only completed trades as denominator
+        const completedTrades = successfulTrades + failedTrades + soldTrades;
+        const successRate = completedTrades > 0 ? (successfulTrades / completedTrades * 100).toFixed(1) : 0;
+        
+        let totalPL = 0;
+        let plCount = 0;
+        trades.forEach(trade => {
+            if (trade.result !== 'OPEN') {
+                totalPL += (trade.profitLoss || 0);
+                plCount++;
+            }
+        });
+        
+        const avgPL = plCount > 0 ? (totalPL).toFixed(2) : 0; // Backend returns summed P/L
+        
+        document.getElementById('filteredCount').textContent = totalTrades;
+        document.getElementById('filteredSuccessRate').textContent = successRate + '%';
+        document.getElementById('filteredAvgPL').textContent = (avgPL >= 0 ? '+' : '') + avgPL + '%';
+    }
+
+    function displayTrades(trades) {
+        const tbody = document.getElementById('tradesTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (trades.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="13" class="center">No trade data match the filters</td></tr>';
+            return;
+        }
+
+        trades.forEach(trade => {
+            const buyPrice = parseFloat(trade.buyPrice);
+            const targetPrice = trade.targetPrice ? parseFloat(trade.targetPrice) : null;
+            const slPrice = buyPrice * (1 - stopLoss / 100);
+            
+            const highReached = trade.maxPriceReached ? parseFloat(trade.maxPriceReached) : null;
+            const lowReached = trade.minPriceReached ? parseFloat(trade.minPriceReached) : null;
+            const exitPrice = trade.exitPrice ? parseFloat(trade.exitPrice) : null;
+            const profitLoss = trade.profitLoss !== undefined ? parseFloat(trade.profitLoss) : 0;
+
+            let resultClass = '';
+            let resultText = '';
+            let executionHtml = '';
+            
+            if (trade.result === 'SUCCESS') {
+                resultClass = 'result-success';
+                resultText = 'TARGET HIT';
+                executionHtml = '<span style="color:#388e3c;font-weight:bold;font-size:0.68rem;">✓ EXECUTED</span>';
+            } else if (trade.result === 'FAIL') {
+                resultClass = 'result-fail';
+                resultText = trade.stopLossHit ? 'STOP LOSS HIT' : 'NEITHER HIT';
+                executionHtml = '<span style="color:#388e3c;font-weight:bold;font-size:0.68rem;">✓ EXECUTED</span>';
+            } else if (trade.result === 'SOLD_OUT') {
+                resultClass = 'result-sold';
+                resultText = 'SOLD';
+                executionHtml = '<span style="color:#388e3c;font-weight:bold;font-size:0.68rem;">✓ EXECUTED</span>';
+            } else if (trade.result === 'NOT_TRADED') {
+                resultClass = 'result-not-traded';
+                resultText = 'NOT TRADED';
+                executionHtml = '<span style="color:#9e9e9e;font-weight:bold;font-size:0.68rem;">✗ NOT EXECUTED</span>';
+            } else {
+                resultClass = 'result-open';
+                resultText = 'OPEN';
+                // OPEN means trade is in progress — check if it actually executed
+                // (firstDayLow exists and <= entry price means it was filled)
+                const fdLow = parseFloat(trade.firstDayLow);
+                const entryPx = parseFloat(trade.buyPrice);
+                if (trade.firstDayLow && !isNaN(fdLow) && fdLow <= entryPx) {
+                    executionHtml = '<span style="color:#388e3c;font-weight:bold;font-size:0.68rem;">✓ EXECUTED</span>';
+                } else if (!trade.firstDayLow) {
+                    // No next-day data yet — truly pending
+                    executionHtml = '<span style="color:#9e9e9e;font-size:0.68rem;">-</span>';
+                } else {
+                    // First day low was above entry — not executed
+                    executionHtml = '<span style="color:#9e9e9e;font-weight:bold;font-size:0.68rem;">✗ NOT EXECUTED</span>';
+                }
+            }
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${formatDate(trade.buyDate)}</td>
+                <td>${macdDisplay(trade.indicator)}</td>
+                <td>₹${buyPrice.toFixed(2)}</td>
+                <td class="first-day-price">${getFirstDayPriceDisplay(trade)}</td>
+                <td>${executionHtml}</td>
+                <td class="success">${targetPrice ? `₹${targetPrice.toFixed(2)}` : '-'}</td>
+                <td class="failure">₹${slPrice.toFixed(2)}</td>
+                <td class="success">${highReached ? `₹${highReached.toFixed(2)}` : '-'}</td>
+                <td class="failure">${lowReached ? `₹${lowReached.toFixed(2)}` : '-'}</td>
+                <td>${exitPrice ? `₹${exitPrice.toFixed(2)}` : '-'}</td>
+                <td class="center">${trade.daysChecked || 0}</td>
+                <td><span class="badge ${resultClass}">${resultText}</span></td>
+                <td class="${profitLoss >= 0 ? 'profit' : 'loss'}">
+                    <strong>${profitLoss >= 0 ? '+' : ''}${profitLoss.toFixed(2)}%</strong>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    function getFirstDayPriceDisplay(trade) {
+        if (!trade.firstDayHigh || !trade.firstDayLow) return '-';
+        return `₹${trade.firstDayLow.toFixed(2)} - ₹${trade.firstDayHigh.toFixed(2)}`;
+    }
+
+    function formatDate(dateString) {
+        if (!dateString) return '-';
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}-${month}-${year}`;
+    }
+
+    function showError(message) {
+        const loadingState = document.getElementById('loadingState');
+        if (!loadingState) {
+            alert(message);
+            return;
+        }
+        loadingState.innerHTML = `
+            <div style="text-align:center;padding:2rem;">
+                <p style="font-size:1.2rem;color:#ef4444;margin-bottom:1rem;">⚠️ ${message}</p>
+                <a href="/advanced-scanner" style="color:#3b82f6;text-decoration:none;">← Back to Scanner</a>
+            </div>
+        `;
+    }
+</script>
+
+<style>
+    .scanner-detail-page {
+        padding: 0.5rem 0.8rem;
+        max-width: 100%;
+    }
+
+    .detail-header {
+        background: white;
+        padding: 0.6rem 0.8rem;
+        margin-bottom: 0.6rem;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        gap: 1.2rem;
+    }
+
+    .back-link {
+        color: #3b82f6;
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+
+    .back-link:hover {
+        text-decoration: underline;
+    }
+
+    .detail-header h1 {
+        font-size: 1.1rem;
+        margin: 0;
+        color: #0f172a;
+    }
+
+    .header-params {
+        display: flex;
+        gap: 0.8rem;
+        font-size: 0.8rem;
+        color: #6b7280;
+        margin-left: auto;
+    }
+
+    .header-params strong {
+        color: #1f2937;
+    }
+
+    .summary-stats {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 0.5rem;
+        margin-bottom: 0.8rem;
+    }
+
+    .stat-item {
+        background: white;
+        padding: 0.55rem 0.7rem;
+        border-radius: 6px;
+        border-left: 3px solid #3b82f6;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .stat-item.success {
+        border-left-color: #10b981;
+    }
+
+    .stat-item.failure {
+        border-left-color: #ef4444;
+    }
+
+    .stat-item.open {
+        border-left-color: #f59e0b;
+    }
+
+    .stat-item.sold {
+        border-left-color: #f97316;
+    }
+
+    .stat-item.rate {
+        border-left-color: #8b5cf6;
+    }
+
+    .stat-item.profit {
+        border-left-color: #06b6d4;
+    }
+
+    .stat-label {
+        display: block;
+        font-size: 0.68rem;
+        color: #6b7280;
+        margin-bottom: 0.2rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .stat-value {
+        display: block;
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #1f2937;
+    }
+
+    .stat-item.success .stat-value { color: #10b981; }
+    .stat-item.failure .stat-value { color: #ef4444; }
+    .stat-item.sold .stat-value    { color: #f97316; }
+    .stat-item.open .stat-value    { color: #f59e0b; }
+    .stat-item.rate .stat-value    { color: #8b5cf6; }
+    .stat-item.profit .stat-value  { color: #06b6d4; }
+
+    .section {
+        background: white;
+        padding: 0.8rem;
+        margin-bottom: 0.8rem;
+        border-radius: 6px;
+    }
+
+    .section h2 {
+        margin: 0 0 0.6rem 0;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .section-header h2 {
+        margin: 0;
+    }
+
+    .filter-controls {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .filter-select {
+        padding: 0.35rem 0.6rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 5px;
+        font-size: 0.78rem;
+        min-width: 140px;
+        color: #475569;
+    }
+
+    .filtered-stats {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .stats-row {
+        display: flex;
+        gap: 2rem;
+        align-items: center;
+    }
+
+    .stats-row .stat-item {
+        background: none;
+        padding: 0;
+        border-left: none;
+        border-radius: 0;
+        box-shadow: none;
+        font-size: 0.9rem;
+        color: #64748b;
+    }
+
+    .stats-row .stat-item strong {
+        color: #1e293b;
+        font-weight: 600;
+    }
+
+    .simulated-entry {
+        background-color: #fef3c7;
+        font-weight: bold;
+        color: #92400e;
+        padding: 2px 4px;
+        border-radius: 3px;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.72rem;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 4px 6px;
+        text-align: center;
+        border-bottom: 1px solid #f1f5f9;
+        line-height: 1.3;
+        font-size: 0.72rem;
+    }
+
+    .data-table th {
+        background: #f8fafc;
+        font-weight: 700;
+        color: #475569;
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        text-align: center;
+    }
+
+    .data-table tbody tr:hover {
+        background: #f9fafb;
+    }
+
+    .trades-table th,
+    .trades-table td {
+        padding: 4px 6px;
+        font-size: 12px;
+        text-align: center;
+    }
+
+    .success {
+        color: #10b981;
+        font-weight: 600;
+    }
+
+    .failure {
+        color: #ef4444;
+        font-weight: 600;
+    }
+
+    .sold {
+        color: #f59e0b;
+        font-weight: 600;
+    }
+
+    .profit {
+        color: #10b981;
+        font-weight: 600;
+    }
+
+    .loss {
+        color: #ef4444;
+        font-weight: 600;
+    }
+
+    .badge {
+        padding: 0.1rem 0.3rem;
+        border-radius: 3px;
+        font-size: 0.6rem;
+        font-weight: 700;
+    }
+
+    .success-high {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .success-medium {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .success-low {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .result-success {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .result-fail {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .result-open {
+        background: #e0e7ff;
+        color: #3730a3;
+    }
+
+    .result-sold {
+        background: #fef3c7;
+        color: #92400e;
+        font-weight: 700;
+    }
+
+    .result-not-traded {
+        background: #f3f4f6;
+        color: #6b7280;
+        font-weight: 600;
+    }
+
+    .loading-state {
+        text-align: center;
+        padding: 3rem;
+        background: white;
+        border-radius: 6px;
+    }
+
+    .loading-spinner {
+        border: 4px solid #f3f4f6;
+        border-top: 4px solid #3b82f6;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    /* First Day Price Column Styling */
+    .first-day-price {
+        background-color: #f8fafc;
+        font-weight: 600;
+        color: #1e293b;
+        border-left: 2px solid #e2e8f0;
+        border-right: 2px solid #e2e8f0;
+    }
+
+    .first-day-range {
+        font-size: 0.72rem;
+        display: block;
+        white-space: nowrap;
+        font-weight: 600;
+    }
+
+    .text-muted {
+        color: #9ca3af;
+        font-style: italic;
+    }
+
+    /* Highlight first day price column header */
+    th:nth-child(4) {
+        background-color: #f1f5f9;
+        color: #334155;
+        font-weight: 700;
+        border-left: 2px solid #cbd5e1;
+        border-right: 2px solid #cbd5e1;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - NSE Stock Analysis{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <!-- Merged Header & Controls Bar -->
+    <div class="merged-header-bar">
+        <div class="header-top">
+            <div class="header-title-section">
+                <h1 style="font-size: 1.05rem;">Historical BUY Signal Analysis</h1>
+            </div>
+
+            <div class="header-left">
+                <p class="header-subtitle" id="latestDate" style="font-size: 0.72rem;">Latest Date: -</p>
+            </div>
+            <div class="indicators-section">
+                <div class="indicators-toggle-wrapper">
+                    <div class="indicators-toggle" id="indicatorsToggle">
+                        <span class="toggle-icon">▼</span>
+                        <span class="toggle-text">📊 Indicators</span>
+                        <span class="indicator-count" id="indicatorCount">Loading...</span>
+                    </div>
+                    <div class="indicators-list hidden" id="indicatorsList">
+                    </div>
+                </div>
+                <a href="/indicator-analytics" target="_blank" class="btn-indicator-analytics"
+                    title="View Indicator Analytics in new tab" style="font-size: 0.72rem; padding: 4px 10px;">
+                    📊 Analytics
+                </a>
+            </div>
+            <div class="header-controls">
+                <div class="control-group" style="padding: 2px 8px;">
+                    <label for="priceFilter" style="font-size: 0.7rem;">Share Price</label>
+                    <select id="priceFilter" class="control-input control-select">
+                        <option value="all">All Prices</option>
+                        <option value="0-50">< ₹50</option>
+                        <option value="50-100">₹50 - ₹100</option>
+                        <option value="100-500">₹100 - ₹500</option>
+                        <option value="500-1000">₹500 - ₹1000</option>
+                        <option value="1000+">> ₹1000</option>
+                    </select>
+                </div>
+                
+                <div class="control-group" style="padding: 2px 8px;">
+                    <label for="dashboardTarget" style="font-size: 0.7rem;">Target Profit %</label>
+                    <input type="number" id="dashboardTarget" class="control-input" placeholder="e.g. 5" min="0.1"
+                        max="100" step="0.1" value="5">
+                </div>
+
+                <div class="control-group" style="padding: 2px 8px;">
+                    <label for="dashboardDays" style="font-size: 0.7rem;">Days to Target</label>
+                    <input type="number" id="dashboardDays" class="control-input" placeholder="e.g. 30" min="1"
+                        max="365" value="30">
+                </div>
+
+                <button id="dashboardAnalyzeBtn" class="btn btn-primary" style="padding: 6px 14px; font-size: 0.8rem;">
+                    <span class="btn-icon">⚡</span>
+                    <span>Analyze</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Section -->
+    <div id="resultsSection" class="results-section hidden">
+        <div class="results-header">
+            <div class="results-header-row">
+                <!-- Search Box for Results -->
+                <div class="results-search-box">
+                    <input type="text" id="resultsSearch" class="results-search-input"
+                        placeholder="🔍 Search companies or indicators..." autocomplete="off">
+                    <button id="clearSearch" class="clear-search-btn">✕</button>
+                </div>
+
+                <!-- Filter Dropdown (for ungrouped view) -->
+                <div class="results-filter-group" id="ungroupedFilter">
+                    <label for="minSignals">Filter:</label>
+                    <select id="minSignals" class="control-input control-select filter-select">
+                        <option value="1">All Companies</option>
+                        <option value="2">2+ Signals</option>
+                        <option value="3">3+ Signals</option>
+                        <option value="4">4+ Signals</option>
+                        <option value="5">5+ Signals</option>
+                    </select>
+                </div>
+
+                <!-- Filter Dropdown (for grouped view) -->
+                <div class="results-filter-group hidden" id="groupedFilter">
+                    <label for="minIndicators">Filter:</label>
+                    <select id="minIndicators" class="control-input control-select filter-select">
+                        <option value="1">All Companies</option>
+                        <option value="2">2+ Indicators</option>
+                        <option value="3">3+ Indicators</option>
+                        <option value="4">4+ Indicators</option>
+                        <option value="5">5+ Indicators</option>
+                    </select>
+                </div>
+
+                <!-- Group By Toggle -->
+                <div class="results-filter-group">
+                    <label>
+                        <input type="checkbox" id="groupByCompany" class="group-toggle-checkbox">
+                        <span class="group-toggle-label">Group by Company</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div id="resultsContainer" class="results-container">
+            <div class="empty-state">Loading results...</div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="loading-state hidden">
+        <div class="spinner"></div>
+        <p>Analyzing all companies...</p>
+    </div>
+</div>
+
+<script>
+    // Store all BUY signals for analysis
+    let allBuySignals = [];
+</script>
+
+<!-- Load fast loading script for dashboard -->
+<script src="/static/progressive-fast.js?v=8.0"></script>
+
+{% endblock %}

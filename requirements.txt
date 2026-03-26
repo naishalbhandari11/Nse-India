@@ -1,0 +1,17 @@
+fastapi==0.115.6
+starlette==0.41.3
+uvicorn[standard]
+psycopg2-binary
+numpy
+jinja2
+python-multipart
+google-genai
+matplotlib
+reportlab
+pandas
+openpyxl
+twilio
+PyJWT
+passlib
+python-dotenv
+feedparser
